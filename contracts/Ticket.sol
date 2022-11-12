@@ -70,6 +70,7 @@ contract Ticket {
         public
         view
         returns (
+            uint256,
             string memory,
             uint256,
             uint256,
@@ -80,6 +81,7 @@ contract Ticket {
         )
     {
         return (
+            id,
             eventName,
             eventDate,
             price,
@@ -108,5 +110,9 @@ contract Ticket {
 
     function getPrice() public view returns (uint256) {
         return price;
+    }
+
+    function getId() public view returns (uint256) {
+        return id;
     }
 }
