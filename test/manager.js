@@ -1,5 +1,4 @@
 const Manager = artifacts.require("Manager");
-const Ticket = artifacts.require("Ticket");
 const utils = require("./helpers/utils");
 
 /*
@@ -25,6 +24,8 @@ contract("manager", function (accounts) {
     EXPIRED: 2,
   };
 
+  // Funcion auxilar
+  // Crea un ticket, y devuelve el ticket creado
   async function createTicket({
     from = admin,
     eventName = 'Ticket name 1',
@@ -41,6 +42,8 @@ contract("manager", function (accounts) {
       eventType,
       status,
       transferStatus, { from: from });
+
+    return (await manager.getTickets())[0];
   }
 
   beforeEach(async () => {
@@ -54,10 +57,10 @@ contract("manager", function (accounts) {
 
   context("function: createTicket", function () {
     it("Should add the ticket", async function () {
-      await createTicket({ from: bob });
+      let aTicket = await createTicket({ from: bob });
 
       let tickets = await manager.getTickets();
-      let owner = await manager.ownerOf(tickets[0]);
+      let owner = await manager.ownerOf(aTicket);
 
       assert.equal(1, tickets.length, "The length of the list should be one (1)");
       assert.equal(bob, owner, "The ticket owner should be the sender");
@@ -90,7 +93,6 @@ contract("manager", function (accounts) {
     })
 
     it("Should not show any ticket, with an address that is not loaded", async function () {
-
       let tickets = await manager.showTicketsByAddress(bob);
 
       assert.equal(0, tickets.length, "The length of the list should be zero (0)");
@@ -99,14 +101,13 @@ contract("manager", function (accounts) {
 
   context("function: transferTicket", function () {
     it("The owner, should change the owner of the ticket", async function () {
-      let owner = admin;
-      let newOwner = bob;
+      let owner = bob;
+      let newOwner = otherAccount;
 
-      await createTicket({ from: owner });
-      let ownerTicket = (await manager.getTickets())[0];
+      let aTicket = await createTicket({ from: owner });
 
-      await manager.transferTicket(ownerTicket, newOwner, { from: owner });
-      let ticketOwner = await manager.ownerOf(ownerTicket);
+      await manager.transferTicket(aTicket, newOwner, { from: owner });
+      let ticketOwner = await manager.ownerOf(aTicket);
 
       assert.equal(ticketOwner, newOwner, "Only the owner should transfer tickets");
     })
@@ -115,11 +116,10 @@ contract("manager", function (accounts) {
       let owner = bob;
       let newOwner = otherAccount;
 
-      await createTicket({ from: owner });
-      let ownerTicket = (await manager.getTickets())[0];
+      let aTicket = await createTicket({ from: owner });
 
-      await manager.transferTicket(ownerTicket, newOwner, { from: admin });
-      let newOwnerTicket = await manager.ownerOf(ownerTicket);
+      await manager.transferTicket(aTicket, newOwner, { from: admin });
+      let newOwnerTicket = await manager.ownerOf(aTicket);
 
       assert.equal(newOwnerTicket, newOwner, "Only the owner should transfer tickets");
     })
@@ -127,13 +127,24 @@ contract("manager", function (accounts) {
     it("Should revert the transaction if another user than owner/admin tries to transfer the ticket", async function () {
       let owner = admin;
       let newOwner = bob;
-      let notOwnerAdmin = bob;
+      let notOwnerAdmin = otherAccount;
 
-      await createTicket({ from: owner });
-      let ownerTicket = (await manager.getTickets())[0];
+      let aTicket = await createTicket({ from: owner });
 
       await utils.shouldThrow(
-        manager.transferTicket(ownerTicket, newOwner, { from: notOwnerAdmin })
+        manager.transferTicket(aTicket, newOwner, { from: notOwnerAdmin })
+      )
+      assert(true);
+    })
+
+    it("Should revert the transaction it the ticket is no transferible", async function () {
+      let owner = admin;
+      let newOwner = bob;
+
+      let aTicket = await createTicket({ from: owner, transferStatus: TransferStatus.NO_TRANSFERIBLE });
+
+      await utils.shouldThrow(
+        manager.transferTicket(aTicket, newOwner, { from: owner })
       )
       assert(true);
     })
@@ -144,8 +155,7 @@ contract("manager", function (accounts) {
       let owner = bob;
       let newPrice = 100;
 
-      await createTicket({ from: owner });
-      let aTicket = (await manager.getTickets())[0];
+      let aTicket = await createTicket({ from: owner });
 
       await manager.changeTicketPrice(aTicket, { from: owner, value: newPrice });
       assert(true);
@@ -154,25 +164,14 @@ contract("manager", function (accounts) {
       assert.equal(updatedPrice, newPrice);
     })
 
-    it("The admin, should change the price of the ticket", async function () {
+    it("Should revert the transaction if another user than owner tries to change ticket's price", async function () {
       let owner = bob;
+      let notOwner = admin;
 
-      await createTicket({ from: owner });
-      let aTicket = (await manager.getTickets())[0];
-
-      await manager.changeTicketPrice(aTicket, { from: admin, value: 100 });
-      assert(true);
-    })
-
-    it("Should revert the transaction if another user than owner/admin tries to change ticket's price", async function () {
-      let owner = admin;
-      let notOwnerAdmin = bob;
-
-      await createTicket({ from: owner });
-      let aTicket = (await manager.getTickets())[0];
+      let aTicket = await createTicket({ from: owner });
 
       await utils.shouldThrow(
-        manager.changeTicketPrice(aTicket, { from: notOwnerAdmin, value: 100 })
+        manager.changeTicketPrice(aTicket, { from: notOwner, value: 100 })
       );
       assert(true);
     })
@@ -182,8 +181,7 @@ contract("manager", function (accounts) {
       let commission = 5;
       let newPrice = 100;
 
-      await createTicket({ from: owner });
-      let aTicket = (await manager.getTickets())[0];
+      let aTicket = await createTicket({ from: owner });
 
       await manager.changeTicketPrice(aTicket, { from: owner, value: newPrice });
       let balance = await web3.eth.getBalance(manager.address)
@@ -197,8 +195,7 @@ contract("manager", function (accounts) {
       let ticketOwner = admin;
       let eventName = 'My event';
 
-      await createTicket({ eventName: eventName, from: ticketOwner });
-      let aTicket = (await manager.getTickets())[0];
+      let aTicket = await createTicket({ eventName: eventName, from: ticketOwner });
       let info = await manager.showTicketInformation(aTicket);
 
       assert.equal(info[1], eventName);
@@ -228,7 +225,7 @@ contract("manager", function (accounts) {
       let otherTicket = (await manager.getTickets())[1];
 
       await manager.changeTicketPrice(adminTicket, { from: admin, value: priceTicket1 });
-      await manager.changeTicketPrice(otherTicket, { from: admin, value: priceTicket2 });
+      await manager.changeTicketPrice(otherTicket, { from: other, value: priceTicket2 });
 
       let info = await manager.showStatistics();
       let ticketCount = info[0]['words'][0];

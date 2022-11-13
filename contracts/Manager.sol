@@ -1,48 +1,55 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./Ticket.sol";
-
-contract MyERC721Token is ERC721 {
-    constructor() ERC721("MyERC721Token", "MTK") {}
-
-    function mint(address to, uint256 tokenId) public {
-        _safeMint(to, tokenId, "");
-    }
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public virtual override {
-        require(
-            _isApprovedOrOwner(from, tokenId),
-            "MyERC721Token:::: caller is not token owner or approved"
-        );
-
-        _transfer(from, to, tokenId);
-    }
-}
+import "./MyERC721Token.sol";
 
 contract Manager {
+    // Autoincrement state to usse as token id
     uint256 ticketId;
-    MyERC721Token private ticketERC721;
-    Ticket[] private tickets;
+
+    // Tax for ticket price change
     uint256 private ticketPriceTax;
+
+    // Admin manager
     address private admin;
 
-    event TicketCreated(address ticketOwner);
+    // List fo tickets
+    Ticket[] private tickets;
 
-    modifier onlyOwnerOrAdmin(address ticketAddr) {
+    // Custom ticket ERC721 contract
+    MyERC721Token private ticketERC721;
+
+    event TransferredTicket(address oldOwner, address newOwner);
+    event TicketCreated(Ticket ticket);
+    event TicketRemoved(Ticket ticket);
+    event TicketPriceChanged(Ticket ticket, uint256 newPrice);
+
+    /**
+     * @dev Modifier.
+     */
+    modifier onlyOwnerOrAdmin(address ticketOwner) {
         require(
-            msg.sender == admin || msg.sender == ticketAddr,
+            msg.sender == admin || msg.sender == ticketOwner,
             "Manager: Only the owner or admin of the Manager contract are allowed"
         );
         _;
     }
 
+    /**
+     * @dev Modifier.
+     */
+    modifier onlyOwner(address ticketOwner) {
+        require(
+            msg.sender == ticketOwner,
+            "Manager: Only the owner are allowed"
+        );
+        _;
+    }
+
+    /**
+     * @dev Initializes the contract by setting a `admin`, `ticketTax` and `ticketERC721`.
+     */
     constructor() {
         admin = msg.sender;
 
@@ -52,6 +59,11 @@ contract Manager {
 
     receive() external payable {}
 
+    /**
+     * @dev Crete a new ticket mints `ticket id` and add the ticket to tickets list
+     *
+     * Emits a {TicketCreated} event.
+     */
     function createTicket(
         string memory ticketName,
         uint256 date,
@@ -76,12 +88,24 @@ contract Manager {
 
         ticketERC721.mint(_owner, _ticket.getId());
         tickets.push(_ticket);
+
+        emit TicketCreated(_ticket);
     }
 
+    /**
+     * @dev Show all the tickets that the platform contains, regardless of who owns them
+     *
+     * @return Ticket[] whether the call correctly returned the list of ticket
+     */
     function showAllTickets() public view returns (Ticket[] memory) {
         return tickets;
     }
 
+    /**
+     * @dev Show tickets that are assigned to a particular owner
+     *
+     * @return Ticket[] whether the call correctly returned the list of ticket
+     */
     function showTicketsByAddress(address addr)
         public
         view
@@ -107,26 +131,41 @@ contract Manager {
         return result;
     }
 
+    /**
+     * @dev Transfer a ticket according to its status, if a Ticket has a Transferable status, it can change owners
+     *
+     * @param _ticket Ticket to transfer
+     * @param _newOwner New ticket owner
+     * 
+     * Emits a {TransferredTicket} event.
+     */
     function transferTicket(Ticket _ticket, address _newOwner)
         public
         onlyOwnerOrAdmin(_ticket.getOwner())
     {
+        address oldOwner;
         require(
             _ticket.getTransferStatus() == TransferStatus.TRANSFERIBLE,
             "Manager: El ticket no es transferible"
         );
-        ticketERC721.transferFrom(
-            _ticket.getOwner(),
-            _newOwner,
-            _ticket.getId()
-        );
+
+        oldOwner = _ticket.getOwner();
+        ticketERC721.transferFrom(oldOwner, _newOwner, _ticket.getId());
         _ticket.changeOwner(_newOwner);
+
+        emit TransferredTicket(oldOwner, _newOwner);
     }
 
+    /**
+     * @dev Allow the owner of a ticket to change the price of the ticket, but in that 
+     * case the Manager contract charges a 5% commission and remains in their balance
+     *
+     * @param _ticket A ticket
+     */
     function changeTicketPrice(Ticket _ticket)
         public
         payable
-        onlyOwnerOrAdmin(_ticket.getOwner())
+        onlyOwner(_ticket.getOwner())
     {
         uint256 newPrice = msg.value;
         address payable ticketAddr = payable(address(_ticket));
@@ -136,8 +175,15 @@ contract Manager {
         require(success);
 
         _ticket.changePrice(newPrice);
+
+        emit TicketPriceChanged(_ticket, newPrice);
     }
 
+    /**
+     * @dev Show ticket information
+     *
+     * @param _ticket A ticket
+     */
     function showTicketInformation(Ticket _ticket)
         public
         view
@@ -155,6 +201,10 @@ contract Manager {
         return _ticket.showInformation();
     }
 
+    /**
+     * @dev Show the number of tickets that the platform has and the total price of the tickets
+     *
+     */
     function showStatistics() public view returns (uint256, uint256) {
         uint256 totalPrice;
         for (uint256 i = 0; i < tickets.length; i++) {
@@ -164,6 +214,11 @@ contract Manager {
         return (tickets.length, totalPrice);
     }
 
+    /**
+     * @dev Remove a ticket from the list by index and transfer the token to the contract address
+     *
+     * Emits a {TicketRemoved} event.
+     */
     function removeTicket(uint256 index) public {
         if (index >= tickets.length) return;
 
@@ -177,8 +232,15 @@ contract Manager {
             address(this),
             _ticket.getId()
         );
+
+        emit TicketRemoved(_ticket);
     }
 
+    /**
+     * @dev Returns the owner of the `ticket`.
+     *
+     * @return ticket owner address
+     */
     function ownerOf(Ticket ticket) public view returns (address) {
         address owner = ticket.getOwner();
         address owner721 = ticketERC721.ownerOf(ticket.getId());
@@ -192,5 +254,12 @@ contract Manager {
 
     function getTicketPrice(Ticket ticket) public view returns (uint256) {
         return ticket.getPrice();
+    }
+
+    function changeTicketTranserStatus(
+        Ticket _ticket,
+        TransferStatus _transferStatus
+    ) public {
+        _ticket.changeTranserStatus(_transferStatus);
     }
 }
