@@ -32,6 +32,7 @@ contract Ticket {
     receive() external payable {}
 
     constructor(
+        uint _id,
         string memory _eventName,
         uint256 _eventDate,
         string memory _eventDescription,
@@ -47,7 +48,7 @@ contract Ticket {
         status = _status;
         transferStatus = _transferStatus;
         owner = _owner;
-        generateId();
+        id = generateId(_id);
     }
 
     function changePrice(uint256 _newPrice) public {
@@ -100,8 +101,8 @@ contract Ticket {
         return transferStatus;
     }
 
-    function generateId() private {
-        id = uint256(keccak256(abi.encodePacked(block.timestamp)));
+    function generateId(uint _id) private pure returns(uint) {
+        return uint256(keccak256(abi.encodePacked(_id)));
     }
 
     function getOwner() public view returns (address) {
