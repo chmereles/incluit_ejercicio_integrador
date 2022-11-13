@@ -87,6 +87,9 @@ module.exports = {
       network_id: 5,       // Goerli's id
       confirmations: 2,    // # of confirmations to wait between deployments. (default: 0)
       timeoutBlocks: 200,  // # of blocks before a deployment times out  (minimum/default: 50)
+      gas: 8500000,           // Gas sent with each transaction (default: ~6700000)
+      gasPrice: 20000000000,  // 20 gwei (in wei) (default: 100 gwei)
+      from: "0x6613e23eF2A214BC4F5A9004Da0BCAd5a4F7DBD3",
       skipDryRun: true     // Skip dry run before migrations? (default: false for public nets )
     },
     //
