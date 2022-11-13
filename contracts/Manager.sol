@@ -52,14 +52,14 @@ contract Manager {
 
     receive() external payable {}
 
-    function createTicket() public {
-        string memory ticketName = "ticket1";
-        uint256 date = block.timestamp;
-        string memory eventDescription = "description";
-        EventType eventType;
-        TicketStatus status;
-        TransferStatus transferStatus;
-
+    function createTicket(
+        string memory ticketName,
+        uint256 date,
+        string memory eventDescription,
+        EventType eventType,
+        TicketStatus status,
+        TransferStatus transferStatus
+    ) public {
         address _owner = msg.sender;
         ticketId += 1;
 

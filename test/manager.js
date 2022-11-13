@@ -10,6 +10,38 @@ const utils = require("./helpers/utils");
 contract("manager", function (accounts) {
   let manager;
   let [admin, bob, otherAccount] = accounts;
+  const TransferStatus = {
+    TRANSFERIBLE: 0,
+    NO_TRANSFERIBLE: 1,
+  };
+  const EventType = {
+    SPORTS: 0,
+    MUSIC: 1,
+    CINEMA: 2,
+  };
+  const TicketStatus = {
+    VALID: 0,
+    USED: 1,
+    EXPIRED: 2,
+  };
+
+  async function createTicket({
+    from = admin,
+    eventName = 'Ticket name 1',
+    date = 1,
+    eventDescription = 'Description 1',
+    eventType = EventType.SPORTS,
+    status = TicketStatus.VALID,
+    transferStatus = TransferStatus.TRANSFERIBLE
+  }) {
+    await manager.createTicket(
+      eventName,
+      date,
+      eventDescription,
+      eventType,
+      status,
+      transferStatus, { from: from });
+  }
 
   beforeEach(async () => {
     manager = await Manager.new();
@@ -22,7 +54,8 @@ contract("manager", function (accounts) {
 
   context("function: createTicket", function () {
     it("Should add the ticket", async function () {
-      await manager.createTicket({ from: bob });
+      await createTicket({ from: bob });
+
       let tickets = await manager.getTickets();
       let owner = await manager.ownerOf(tickets[0]);
 
@@ -39,8 +72,7 @@ contract("manager", function (accounts) {
     })
 
     it("Should show all tickets", async function () {
-      await manager.createTicket();
-
+      await createTicket({ from: admin });
       let tickets = await manager.getTickets();
 
       assert.equal(1, tickets.length, "The length of the list should be one (1)");
@@ -49,10 +81,9 @@ contract("manager", function (accounts) {
 
   context("function: showTicketsByAddress", function () {
     it("Should show the tickets that are assigned to an address", async function () {
-      await manager.createTicket({ from: admin });
-      await manager.createTicket({ from: admin });
-      await manager.createTicket({ from: bob });
-
+      await createTicket({ from: admin });
+      await createTicket({ from: admin });
+      await createTicket({ from: bob });
       let tickets = await manager.showTicketsByAddress(bob);
 
       assert.equal(1, tickets.length, "the length of the list should be one (1)");
@@ -67,12 +98,11 @@ contract("manager", function (accounts) {
   });
 
   context("function: transferTicket", function () {
-
     it("The owner, should change the owner of the ticket", async function () {
       let owner = admin;
       let newOwner = bob;
 
-      await manager.createTicket({ from: owner });
+      await createTicket({ from: owner });
       let ownerTicket = (await manager.getTickets())[0];
 
       await manager.transferTicket(ownerTicket, newOwner, { from: owner });
@@ -85,7 +115,7 @@ contract("manager", function (accounts) {
       let owner = bob;
       let newOwner = otherAccount;
 
-      await manager.createTicket({ from: owner });
+      await createTicket({ from: owner });
       let ownerTicket = (await manager.getTickets())[0];
 
       await manager.transferTicket(ownerTicket, newOwner, { from: admin });
@@ -99,7 +129,7 @@ contract("manager", function (accounts) {
       let newOwner = bob;
       let notOwnerAdmin = bob;
 
-      await manager.createTicket({ from: owner });
+      await createTicket({ from: owner });
       let ownerTicket = (await manager.getTickets())[0];
 
       await utils.shouldThrow(
@@ -114,7 +144,7 @@ contract("manager", function (accounts) {
       let owner = bob;
       let newPrice = 100;
 
-      await manager.createTicket({ from: owner });
+      await createTicket({ from: owner });
       let aTicket = (await manager.getTickets())[0];
 
       await manager.changeTicketPrice(aTicket, { from: owner, value: newPrice });
@@ -127,7 +157,7 @@ contract("manager", function (accounts) {
     it("The admin, should change the price of the ticket", async function () {
       let owner = bob;
 
-      await manager.createTicket({ from: owner });
+      await createTicket({ from: owner });
       let aTicket = (await manager.getTickets())[0];
 
       await manager.changeTicketPrice(aTicket, { from: admin, value: 100 });
@@ -138,7 +168,7 @@ contract("manager", function (accounts) {
       let owner = admin;
       let notOwnerAdmin = bob;
 
-      await manager.createTicket({ from: owner });
+      await createTicket({ from: owner });
       let aTicket = (await manager.getTickets())[0];
 
       await utils.shouldThrow(
@@ -152,7 +182,7 @@ contract("manager", function (accounts) {
       let commission = 5;
       let newPrice = 100;
 
-      await manager.createTicket({ from: owner });
+      await createTicket({ from: owner });
       let aTicket = (await manager.getTickets())[0];
 
       await manager.changeTicketPrice(aTicket, { from: owner, value: newPrice });
@@ -164,16 +194,12 @@ contract("manager", function (accounts) {
 
   context("function: showTicketInformation", function () {
     it("Should show Ticket information", async function () {
-      let eventName = 'ticket1';
-      let eventDate = 'ticket1';
-      let price = 'ticket1';
-      let eventDescription = 'ticket1';
       let ticketOwner = admin;
+      let eventName = 'My event';
 
-      await manager.createTicket();
+      await createTicket({ eventName: eventName, from: ticketOwner });
       let aTicket = (await manager.getTickets())[0];
       let info = await manager.showTicketInformation(aTicket);
-      // console.log(info)
 
       assert.equal(info[1], eventName);
       assert.equal(info[7], ticketOwner);
@@ -195,15 +221,15 @@ contract("manager", function (accounts) {
       let priceTicket1 = 5;
       let priceTicket2 = 6;
 
-      await manager.createTicket({from: admin});
-      await manager.createTicket({from: other});
-      
+      await createTicket({ from: admin });
+      await createTicket({ from: other });
+
       let adminTicket = (await manager.getTickets())[0];
       let otherTicket = (await manager.getTickets())[1];
 
       await manager.changeTicketPrice(adminTicket, { from: admin, value: priceTicket1 });
       await manager.changeTicketPrice(otherTicket, { from: admin, value: priceTicket2 });
-      
+
       let info = await manager.showStatistics();
       let ticketCount = info[0]['words'][0];
       let totalPrice = info[1]['words'][0];
@@ -215,7 +241,7 @@ contract("manager", function (accounts) {
 
   context("function: removeTicket", function () {
     it("Should remove a ticket by index", async function () {
-      await manager.createTicket({from: admin});
+      await createTicket({ from: admin });
       await manager.removeTicket(0);
 
       let tickets = await manager.getTickets();
