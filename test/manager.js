@@ -245,5 +245,14 @@ contract("manager", function (accounts) {
 
       assert.equal(tickets.length, 0);
     })
+    
+    it("Should revert if the ticket does not exist", async function () {
+      await createTicket({ from: admin });
+    
+      await utils.shouldThrow(
+        manager.removeTicket(1)
+      );
+      assert(true);
+    })
   });
 });

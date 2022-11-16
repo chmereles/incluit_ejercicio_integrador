@@ -18,7 +18,7 @@ contract MyERC721Token is ERC721 {
     ) public virtual override {
         require(
             _isApprovedOrOwner(from, tokenId),
-            "MyERC721Token:::: caller is not token owner or approved"
+            "MyERC721Token: caller is not token owner or approved"
         );
 
         _transfer(from, to, tokenId);

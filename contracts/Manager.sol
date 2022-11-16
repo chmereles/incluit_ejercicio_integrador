@@ -59,6 +59,8 @@ contract Manager {
 
     receive() external payable {}
 
+    fallback() external payable {}
+
     /**
      * @dev Crete a new ticket mints `ticket id` and add the ticket to tickets list
      *
@@ -73,6 +75,7 @@ contract Manager {
         TransferStatus transferStatus
     ) public {
         address _owner = msg.sender;
+        // Always increments, hence a unique value is obtained
         ticketId += 1;
 
         Ticket _ticket = new Ticket(
@@ -220,8 +223,8 @@ contract Manager {
      * Emits a {TicketRemoved} event.
      */
     function removeTicket(uint256 index) public {
-        if (index >= tickets.length) return;
-
+        require(index < tickets.length, "the ticket does not exist");
+        
         Ticket _ticket = tickets[index];
 
         tickets[index] = tickets[tickets.length - 1];
