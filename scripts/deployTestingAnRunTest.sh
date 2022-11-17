@@ -3,14 +3,16 @@
 # exit when any command fails
 set -e
 
-$NETWORK_NAME = "testing"
+NETWORK_NAME="ganache"
 
 echo "----------------------------COMPILE---------------------------------"
-echo "truflle complile --network $NETWORK_NAME"
-truflle complile --network $NETWORK_NAME
+echo "truffle complile --network $NETWORK_NAME"
+truffle complile --network $NETWORK_NAME
 
-echo "truflle migrate --network $NETWORK_NAME"
-truflle migrate --network $NETWORK_NAME
+echo "----------------------------TEST---------------------------------"
+echo "truffle test --network $NETWORK_NAME"
+truffle test 
 
-echo "truflle test --network $NETWORK_NAME"
-truflle test --network $NETWORK_NAME
+echo "----------------------------MIGRATE---------------------------------"
+echo "truffle migrate --network $NETWORK_NAME"
+truffle migrate --network $NETWORK_NAME

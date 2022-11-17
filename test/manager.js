@@ -1,4 +1,5 @@
 const Manager = artifacts.require("Manager");
+const Ticket = artifacts.require("Ticket");
 const utils = require("./helpers/utils");
 
 /*
@@ -42,6 +43,11 @@ contract("manager", function (accounts) {
       eventType,
       status,
       transferStatus, { from: from });
+
+    // let tickets = await manager.getTickets();
+    // let firsTicket = await Ticket.at(tickets[0]);
+    // let price = await firsTicket.getPrice();
+    // console.log(price);
 
     return (await manager.getTickets())[0];
   }
@@ -213,19 +219,19 @@ contract("manager", function (accounts) {
       assert.equal(totalPrice, 0);
     })
 
-    it("Should show Ticket information", async function () {
-      let other = bob;
+    it("Should show Ticket information to any user", async function () {
+      let anyUser = bob;
       let priceTicket1 = 5;
       let priceTicket2 = 6;
 
       await createTicket({ from: admin });
-      await createTicket({ from: other });
+      await createTicket({ from: anyUser });
 
       let adminTicket = (await manager.getTickets())[0];
       let otherTicket = (await manager.getTickets())[1];
 
       await manager.changeTicketPrice(adminTicket, { from: admin, value: priceTicket1 });
-      await manager.changeTicketPrice(otherTicket, { from: other, value: priceTicket2 });
+      await manager.changeTicketPrice(otherTicket, { from: anyUser, value: priceTicket2 });
 
       let info = await manager.showStatistics();
       let ticketCount = info[0]['words'][0];
@@ -245,10 +251,10 @@ contract("manager", function (accounts) {
 
       assert.equal(tickets.length, 0);
     })
-    
+
     it("Should revert if the ticket does not exist", async function () {
       await createTicket({ from: admin });
-    
+
       await utils.shouldThrow(
         manager.removeTicket(1)
       );
