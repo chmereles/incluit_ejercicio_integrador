@@ -261,15 +261,6 @@ contract Manager {
     }
 
     /**
-     * @dev Returns all the tickets that the platform contains, regardless of who the owner is.
-     *
-     * @return tickets Ticket[]
-     */
-    function getTickets() public view returns (Ticket[] memory) {
-        return tickets;
-    }
-
-    /**
      * @dev Change the ticket transfer status
      *
      * Emits a {TransferStatusChanged} event.
@@ -290,6 +281,14 @@ contract Manager {
     function changeTicketStatus(Ticket _ticket, TicketStatus _status) public {
         _ticket.changeStatus(_status);
         emit TicketStatusChanged(_ticket, _status);
+    }
+
+    /**
+     * @dev Return balance of contract
+     *
+     */
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
     }
 
     function getTicketPrice(Ticket ticket) public view returns (uint256) {

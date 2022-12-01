@@ -49,7 +49,7 @@ contract("manager", function (accounts) {
       eventType,
       transferStatus, { from: from });
 
-    return (await manager.getTickets())[0];
+    return (await manager.showAllTickets())[0];
   }
 
   beforeEach(async () => {
@@ -65,7 +65,7 @@ contract("manager", function (accounts) {
     it("Should add the ticket", async function () {
       let aTicket = await createTicket({ from: bob });
 
-      let tickets = await manager.getTickets();
+      let tickets = await manager.showAllTickets();
       let owner = await manager.ownerOf(aTicket);
 
       assert.equal(1, tickets.length, "The length of the list should be one (1)");
@@ -75,14 +75,14 @@ contract("manager", function (accounts) {
 
   context("function: showAllTickets", function () {
     it("should not show any ticket, when no ticket is created", async function () {
-      let tickets = await manager.getTickets();
+      let tickets = await manager.showAllTickets();
 
       assert.equal(0, tickets.length, "the length of the list should be zero (0)");
     })
 
     it("Should show all tickets", async function () {
       await createTicket({ from: admin });
-      let tickets = await manager.getTickets();
+      let tickets = await manager.showAllTickets();
 
       assert.equal(1, tickets.length, "The length of the list should be one (1)");
     })
@@ -281,7 +281,7 @@ contract("manager", function (accounts) {
       await createTicket({ from: admin });
       await manager.removeTicket(0);
 
-      let tickets = await manager.getTickets();
+      let tickets = await manager.showAllTickets();
 
       assert.equal(tickets.length, 0);
     })
