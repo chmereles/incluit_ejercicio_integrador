@@ -7,6 +7,11 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 contract MyERC721Token is ERC721 {
     constructor() ERC721("MyERC721Token", "MTK") {}
 
+    /**
+     * @dev Safely mints `tokenId` and transfers it to `to`.
+     *
+     * Emits a {TicketCreated} event.
+     */
     function mint(address to, uint256 tokenId) public {
         _safeMint(to, tokenId, "");
     }

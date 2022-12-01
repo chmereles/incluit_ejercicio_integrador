@@ -19,6 +19,8 @@ enum TicketStatus {
 }
 
 contract Ticket {
+    uint constant DEFAULT_PRICE = 100;
+
     uint256 private id;
     string private eventName;
     uint256 private eventDate;
@@ -37,7 +39,6 @@ contract Ticket {
         uint256 _eventDate,
         string memory _eventDescription,
         EventType _eventType,
-        TicketStatus _status,
         TransferStatus _transferStatus,
         address _owner
     )  {
@@ -45,9 +46,11 @@ contract Ticket {
         eventDate = _eventDate;
         eventDescription = _eventDescription;
         eventType = _eventType;
-        status = _status;
         transferStatus = _transferStatus;
         owner = _owner;
+        
+        status = TicketStatus.VALID;
+        price = DEFAULT_PRICE;
         id = generateId(_id);
     }
 

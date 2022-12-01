@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/utils/Strings.sol";
+
 import "./Ticket.sol";
 import "./MyERC721Token.sol";
 
@@ -14,7 +16,7 @@ contract Manager {
     // Admin manager
     address private admin;
 
-    // List fo tickets
+    // Tickets list
     Ticket[] private tickets;
 
     // Custom ticket ERC721 contract
@@ -24,6 +26,8 @@ contract Manager {
     event TicketCreated(Ticket ticket);
     event TicketRemoved(Ticket ticket);
     event TicketPriceChanged(Ticket ticket, uint256 newPrice);
+    event TicketStatusChanged(Ticket ticket, TicketStatus newStatus);
+    event TransferStatusChanged(Ticket ticket, TransferStatus newStatus);
 
     /**
      * @dev Modifier.
@@ -39,9 +43,9 @@ contract Manager {
     /**
      * @dev Modifier.
      */
-    modifier onlyOwner(address ticketOwner) {
+    modifier onlyOwner(Ticket ticket) {
         require(
-            msg.sender == ticketOwner,
+            msg.sender == ticket.getOwner(),
             "Manager: Only the owner are allowed"
         );
         _;
@@ -71,11 +75,10 @@ contract Manager {
         uint256 date,
         string memory eventDescription,
         EventType eventType,
-        TicketStatus status,
         TransferStatus transferStatus
     ) public {
         address _owner = msg.sender;
-        // Always increments, hence a unique value is obtained
+        // Siempre incrementa, por lo tanto se optiene un valor unico
         ticketId += 1;
 
         Ticket _ticket = new Ticket(
@@ -84,7 +87,6 @@ contract Manager {
             date,
             eventDescription,
             eventType,
-            status,
             transferStatus,
             _owner
         );
@@ -139,7 +141,7 @@ contract Manager {
      *
      * @param _ticket Ticket to transfer
      * @param _newOwner New ticket owner
-     * 
+     *
      * Emits a {TransferredTicket} event.
      */
     function transferTicket(Ticket _ticket, address _newOwner)
@@ -160,26 +162,21 @@ contract Manager {
     }
 
     /**
-     * @dev Allow the owner of a ticket to change the price of the ticket, but in that 
+     * @dev Allow the owner of a ticket to change the price of the ticket, but in that
      * case the Manager contract charges a 5% commission and remains in their balance
      *
      * @param _ticket A ticket
      */
-    function changeTicketPrice(Ticket _ticket)
+    function changeTicketPrice(Ticket _ticket, uint256 _newPrice)
         public
         payable
-        onlyOwner(_ticket.getOwner())
+        onlyOwner(_ticket)
     {
-        uint256 newPrice = msg.value;
-        address payable ticketAddr = payable(address(_ticket));
+        uint256 commission = (_newPrice * ticketPriceTax) / 100;
+        require(msg.value >= commission, "Manager: Comision incorrecta");
 
-        uint256 commission = (newPrice * ticketPriceTax) / 100;
-        (bool success, ) = ticketAddr.call{value: newPrice - commission}("");
-        require(success);
-
-        _ticket.changePrice(newPrice);
-
-        emit TicketPriceChanged(_ticket, newPrice);
+        _ticket.changePrice(_newPrice);
+        emit TicketPriceChanged(_ticket, _newPrice);
     }
 
     /**
@@ -208,13 +205,25 @@ contract Manager {
      * @dev Show the number of tickets that the platform has and the total price of the tickets
      *
      */
-    function showStatistics() public view returns (uint256, uint256) {
+    function showStatistics() public view returns (string memory) {
         uint256 totalPrice;
+
+        if (tickets.length == 0) {
+            return "Ningun ticket vendido";
+        }
+
+        // There are tickets sold
         for (uint256 i = 0; i < tickets.length; i++) {
             totalPrice += tickets[i].getPrice();
         }
 
-        return (tickets.length, totalPrice);
+        return
+            string.concat(
+                "El evento tiene ",
+                Strings.toString(tickets.length),
+                " tickets vendidos, por un total de ",
+                Strings.toString(totalPrice)
+            );
     }
 
     /**
@@ -224,7 +233,7 @@ contract Manager {
      */
     function removeTicket(uint256 index) public {
         require(index < tickets.length, "the ticket does not exist");
-        
+
         Ticket _ticket = tickets[index];
 
         tickets[index] = tickets[tickets.length - 1];
@@ -251,18 +260,39 @@ contract Manager {
         return owner;
     }
 
+    /**
+     * @dev Returns all the tickets that the platform contains, regardless of who the owner is.
+     *
+     * @return tickets Ticket[]
+     */
     function getTickets() public view returns (Ticket[] memory) {
         return tickets;
     }
 
-    function getTicketPrice(Ticket ticket) public view returns (uint256) {
-        return ticket.getPrice();
-    }
-
+    /**
+     * @dev Change the ticket transfer status
+     *
+     * Emits a {TransferStatusChanged} event.
+     */
     function changeTicketTranserStatus(
         Ticket _ticket,
         TransferStatus _transferStatus
     ) public {
         _ticket.changeTranserStatus(_transferStatus);
+        emit TransferStatusChanged(_ticket, _transferStatus);
+    }
+
+    /**
+     * @dev Change the ticket status
+     *
+     * Emits a {TicketStatusChanged} event.
+     */
+    function changeTicketStatus(Ticket _ticket, TicketStatus _status) public {
+        _ticket.changeStatus(_status);
+        emit TicketStatusChanged(_ticket, _status);
+    }
+
+    function getTicketPrice(Ticket ticket) public view returns (uint256) {
+        return ticket.getPrice();
     }
 }

@@ -8,17 +8,24 @@ const utils = require("./helpers/utils");
  * See docs: https://www.trufflesuite.com/docs/truffle/testing/writing-tests-in-javascript
  */
 contract("manager", function (accounts) {
+  let tax = 5;
+  let default_ticket_price = 100;
+
   let manager;
+
   let [admin, bob, otherAccount] = accounts;
+
   const TransferStatus = {
     TRANSFERIBLE: 0,
     NO_TRANSFERIBLE: 1,
   };
+
   const EventType = {
     SPORTS: 0,
     MUSIC: 1,
     CINEMA: 2,
   };
+
   const TicketStatus = {
     VALID: 0,
     USED: 1,
@@ -33,7 +40,6 @@ contract("manager", function (accounts) {
     date = 1,
     eventDescription = 'Description 1',
     eventType = EventType.SPORTS,
-    status = TicketStatus.VALID,
     transferStatus = TransferStatus.TRANSFERIBLE
   }) {
     await manager.createTicket(
@@ -41,13 +47,7 @@ contract("manager", function (accounts) {
       date,
       eventDescription,
       eventType,
-      status,
       transferStatus, { from: from });
-
-    // let tickets = await manager.getTickets();
-    // let firsTicket = await Ticket.at(tickets[0]);
-    // let price = await firsTicket.getPrice();
-    // console.log(price);
 
     return (await manager.getTickets())[0];
   }
@@ -157,13 +157,19 @@ contract("manager", function (accounts) {
   });
 
   context("function: changeTicketPrice", function () {
+
+    function getComission(price) {
+      return price * tax / 100;;
+    }
+
     it("The owner, should change the price of the ticket", async function () {
       let owner = bob;
       let newPrice = 100;
 
       let aTicket = await createTicket({ from: owner });
+      let commission = getComission(newPrice);
 
-      await manager.changeTicketPrice(aTicket, { from: owner, value: newPrice });
+      await manager.changeTicketPrice(aTicket, newPrice, { from: owner, value: commission });
       assert(true);
 
       let updatedPrice = await manager.getTicketPrice(aTicket);
@@ -172,28 +178,43 @@ contract("manager", function (accounts) {
 
     it("Should revert the transaction if another user than owner tries to change ticket's price", async function () {
       let owner = bob;
+      let newPrice = 100;
       let notOwner = admin;
 
       let aTicket = await createTicket({ from: owner });
+      let commission = getComission(newPrice);
 
       await utils.shouldThrow(
-        manager.changeTicketPrice(aTicket, { from: notOwner, value: 100 })
+        manager.changeTicketPrice(aTicket, newPrice, { from: notOwner, value: commission })
       );
       assert(true);
     })
 
     it("Should pay a commssion when change the price of the ticket", async function () {
       let owner = admin;
-      let commission = 5;
       let newPrice = 100;
 
       let aTicket = await createTicket({ from: owner });
+      let commission = getComission(newPrice);
 
-      await manager.changeTicketPrice(aTicket, { from: owner, value: newPrice });
+      await manager.changeTicketPrice(aTicket, newPrice, { from: owner, value: commission });
       let balance = await web3.eth.getBalance(manager.address)
 
       assert.equal(balance, newPrice * commission / 100);
     })
+
+    it("Should revert if the value sent is less than the commission", async function () {
+      let owner = admin;
+      let newPrice = 100;
+
+      let aTicket = await createTicket({ from: owner });
+      let commission = getComission(newPrice);
+
+      await utils.shouldThrow(
+         manager.changeTicketPrice(aTicket, newPrice, { from: owner, value: commission - 1 })
+      );
+      assert(true);
+    });
   });
 
   context("function: showTicketInformation", function () {
@@ -210,35 +231,48 @@ contract("manager", function (accounts) {
   });
 
   context("function: showStatistics", function () {
-    it("Should show Ticket information, total 0 price 0", async function () {
-      let info = await manager.showStatistics();
-      let ticketCount = info[0]['words'][0];
-      let totalPrice = info[1]['words'][0];
+    
+    function getMessage(_ticketsCount, _totalPrice) {
+      return "".concat(
+        "El evento tiene ",
+        _ticketsCount,
+        " tickets vendidos, por un total de ",
+        _totalPrice);
+    }
 
-      assert.equal(ticketCount, 0);
-      assert.equal(totalPrice, 0);
+    it("Should show Ticket information, 'Ningun ticket vendido'", async function () {
+      let noTicketSold = "Ningun ticket vendido";
+
+      let info = await manager.showStatistics();
+
+      assert.equal(info, noTicketSold);
+    })
+
+    it("Should show Ticket information, '1 ticket vendido por un total de 100'", async function () {
+      let ticketsCount = 1;
+      let totalPrice = default_ticket_price;
+
+      await createTicket({});
+
+      let message = getMessage(ticketsCount, totalPrice);
+
+      let info = await manager.showStatistics();
+
+      assert.equal(info, message);
     })
 
     it("Should show Ticket information to any user", async function () {
       let anyUser = bob;
-      let priceTicket1 = 5;
-      let priceTicket2 = 6;
+      let ticketsCount = 1;
+      let totalPrice = default_ticket_price;
 
       await createTicket({ from: admin });
-      await createTicket({ from: anyUser });
 
-      let adminTicket = (await manager.getTickets())[0];
-      let otherTicket = (await manager.getTickets())[1];
+      let message = getMessage(ticketsCount, totalPrice);
 
-      await manager.changeTicketPrice(adminTicket, { from: admin, value: priceTicket1 });
-      await manager.changeTicketPrice(otherTicket, { from: anyUser, value: priceTicket2 });
+      let info = await manager.showStatistics({ from: anyUser });
 
-      let info = await manager.showStatistics();
-      let ticketCount = info[0]['words'][0];
-      let totalPrice = info[1]['words'][0];
-
-      assert.equal(ticketCount, 2);
-      assert.equal(totalPrice, priceTicket1 + priceTicket2);
+      assert.equal(info, message);
     })
   });
 
