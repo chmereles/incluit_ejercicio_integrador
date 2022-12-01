@@ -25,9 +25,8 @@ Scripts
 Goerli Testnet Network
 ====
 
-- [Contrato descplegado en Goerli Etherscan](https://goerli.etherscan.io/address/0xFfd2016c95d0758534ca4cF23Df8bCd8d05dfD34)
+- Contrato descplegado en Goerli Etherscan [0xFfd2016c95d0758534ca4cF23Df8bCd8d05dfD34](https://goerli.etherscan.io/address/0xFfd2016c95d0758534ca4cF23Df8bCd8d05dfD34)
 
-- Contract address `0xFfd2016c95d0758534ca4cF23Df8bCd8d05dfD34`
 
 Contact
 =====
